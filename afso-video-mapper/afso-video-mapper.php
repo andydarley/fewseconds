@@ -19,8 +19,8 @@ require_once AFSO_PATH . 'includes/rest-endpoints.php';
 add_filter('template_include', function ($template) {
     if (is_tax('county')) {
         return AFSO_PATH . 'templates/taxonomy-county.php';
-    } elseif (is_singular('afso_videos')) {
+    }/* elseif (is_singular('afso_videos')) {
         return AFSO_PATH . 'templates/single-afso_videos.php';
-    }
+    }*/
     return $template;
 });
