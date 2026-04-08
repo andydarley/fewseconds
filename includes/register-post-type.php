@@ -42,6 +42,77 @@ add_action('restrict_manage_posts', function ($post_type) {
     ]);
 });
 
+/**
+ * Try to read sequence from meta first; fallback to title prefix (e.g. "210: ...").
+ */
+function afso_get_sequence_for_admin($post_id, $post_title = '') {
+    $sequence = get_post_meta($post_id, 'afso_sequence', true);
+
+    if ($sequence !== '' && $sequence !== null) {
+        return (string) $sequence;
+    }
+
+    if ($post_title === '') {
+        $post_title = get_the_title($post_id);
+    }
+
+    if (preg_match('/^\s*(\d+)\s*[:\-]/', $post_title, $m)) {
+        return $m[1];
+    }
+
+    return '';
+}
+
+/**
+ * Try to read filmed datetime from modern meta first, then legacy date/time fields.
+ */
+function afso_get_filmed_datetime_for_admin($post_id) {
+    $raw = (string) get_post_meta($post_id, 'afso_date_filmed', true);
+    if ($raw !== '') return $raw;
+
+    $legacy_date = trim((string) get_post_meta($post_id, 'afso_date', true));
+    $legacy_time = trim((string) get_post_meta($post_id, 'afso_time', true));
+
+    if ($legacy_date === '' && $legacy_time === '') {
+        return '';
+    }
+
+    $candidate = trim($legacy_date . ' ' . strtolower($legacy_time));
+
+    // Common historic formats seen in this project.
+    $formats = [
+        'd/m/Y g.ia',
+        'd/m/Y g:ia',
+        'd/m/Y H:i',
+        'd/m/Y',
+        'Y-m-d H:i:s',
+        'Y-m-d H:i',
+        'Y-m-d',
+    ];
+
+    foreach ($formats as $format) {
+        $dt = DateTime::createFromFormat($format, $candidate);
+        if ($dt instanceof DateTime) {
+            return $dt->format('Y-m-d H:i:s');
+        }
+
+        // Try date-only formats against date only.
+        if (in_array($format, ['d/m/Y', 'Y-m-d'], true)) {
+            $dt = DateTime::createFromFormat($format, $legacy_date);
+            if ($dt instanceof DateTime) {
+                return $dt->format('Y-m-d 00:00:00');
+            }
+        }
+    }
+
+    $ts = strtotime($candidate);
+    if ($ts !== false) {
+        return date('Y-m-d H:i:s', $ts);
+    }
+
+    return '';
+}
+
 // Admin list columns: sequence first, county and filmed date visible.
 add_filter('manage_afso_videos_posts_columns', function ($columns) {
     $new_columns = [];
@@ -54,6 +125,8 @@ add_filter('manage_afso_videos_posts_columns', function ($columns) {
 
     if (isset($columns['title'])) {
         $new_columns['title'] = $columns['title'];
+    } else {
+        $new_columns['title'] = 'Title';
     }
 
     if (isset($columns['taxonomy-county'])) {
@@ -73,18 +146,13 @@ add_filter('manage_afso_videos_posts_columns', function ($columns) {
 
 add_action('manage_afso_videos_posts_custom_column', function ($column, $post_id) {
     if ($column === 'afso_sequence') {
-        $sequence = get_post_meta($post_id, 'afso_sequence', true);
-        if ($sequence === '' || $sequence === null) {
-            echo '&mdash;';
-            return;
-        }
-
-        echo esc_html((string) $sequence);
+        $sequence = afso_get_sequence_for_admin($post_id);
+        echo $sequence === '' ? '&mdash;' : esc_html($sequence);
         return;
     }
 
     if ($column === 'afso_date_filmed') {
-        $raw = (string) get_post_meta($post_id, 'afso_date_filmed', true);
+        $raw = afso_get_filmed_datetime_for_admin($post_id);
         if ($raw === '') {
             echo '&mdash;';
             return;
@@ -97,6 +165,7 @@ add_action('manage_afso_videos_posts_custom_column', function ($column, $post_id
         }
 
         echo esc_html(date_i18n('j M Y, g:ia', $ts));
+        return;
     }
 }, 10, 2);
 
@@ -106,9 +175,9 @@ add_filter('manage_edit-afso_videos_sortable_columns', function ($columns) {
     return $columns;
 });
 
+// Keep sorting behavior simple/reliable: sort by stored meta keys.
 add_action('pre_get_posts', function ($query) {
     if (!is_admin() || !$query->is_main_query()) return;
-
     if ($query->get('post_type') !== 'afso_videos') return;
 
     $orderby = $query->get('orderby');
