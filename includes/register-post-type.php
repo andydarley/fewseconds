@@ -20,6 +20,16 @@ function afso_register_post_type_and_taxonomy() {
         'hierarchical' => true,
         'rewrite' => array('slug' => 'county'),
         'show_admin_column' => true,
+        'show_in_rest' => true,
+    ));
+
+    // New taxonomy requested.
+    register_taxonomy('country', 'afso_videos', array(
+        'label' => 'Country',
+        'hierarchical' => true,
+        'rewrite' => array('slug' => 'country'),
+        'show_admin_column' => true,
+        'show_in_rest' => true,
     ));
 }
 add_action('init', 'afso_register_post_type_and_taxonomy');
@@ -42,9 +52,7 @@ add_action('restrict_manage_posts', function ($post_type) {
     ]);
 });
 
-/**
- * Try to read sequence from meta first; fallback to title prefix (e.g. "210: ...").
- */
+// Helpers for mixed legacy/new data.
 function afso_get_sequence_for_admin($post_id, $post_title = '') {
     $sequence = get_post_meta($post_id, 'afso_sequence', true);
 
@@ -56,6 +64,7 @@ function afso_get_sequence_for_admin($post_id, $post_title = '') {
         $post_title = get_the_title($post_id);
     }
 
+    // Fallback from title prefix: "210: ...", "210 - ...", etc.
     if (preg_match('/^\s*(\d+)\s*[:\-]/', $post_title, $m)) {
         return $m[1];
     }
@@ -63,9 +72,6 @@ function afso_get_sequence_for_admin($post_id, $post_title = '') {
     return '';
 }
 
-/**
- * Try to read filmed datetime from modern meta first, then legacy date/time fields.
- */
 function afso_get_filmed_datetime_for_admin($post_id) {
     $raw = (string) get_post_meta($post_id, 'afso_date_filmed', true);
     if ($raw !== '') return $raw;
@@ -79,7 +85,6 @@ function afso_get_filmed_datetime_for_admin($post_id) {
 
     $candidate = trim($legacy_date . ' ' . strtolower($legacy_time));
 
-    // Common historic formats seen in this project.
     $formats = [
         'd/m/Y g.ia',
         'd/m/Y g:ia',
@@ -96,7 +101,7 @@ function afso_get_filmed_datetime_for_admin($post_id) {
             return $dt->format('Y-m-d H:i:s');
         }
 
-        // Try date-only formats against date only.
+        // date-only fallback against date-only value
         if (in_array($format, ['d/m/Y', 'Y-m-d'], true)) {
             $dt = DateTime::createFromFormat($format, $legacy_date);
             if ($dt instanceof DateTime) {
@@ -113,7 +118,7 @@ function afso_get_filmed_datetime_for_admin($post_id) {
     return '';
 }
 
-// Admin list columns: sequence first, county and filmed date visible.
+// Admin list columns: sequence first, then title/county/date filmed.
 add_filter('manage_afso_videos_posts_columns', function ($columns) {
     $new_columns = [];
 
@@ -129,6 +134,7 @@ add_filter('manage_afso_videos_posts_columns', function ($columns) {
         $new_columns['title'] = 'Title';
     }
 
+    // Keep county visible
     if (isset($columns['taxonomy-county'])) {
         $new_columns['taxonomy-county'] = $columns['taxonomy-county'];
     } else {
@@ -175,7 +181,7 @@ add_filter('manage_edit-afso_videos_sortable_columns', function ($columns) {
     return $columns;
 });
 
-// Keep sorting behavior simple/reliable: sort by stored meta keys.
+// Sorting fix: include posts with missing meta instead of hiding them.
 add_action('pre_get_posts', function ($query) {
     if (!is_admin() || !$query->is_main_query()) return;
     if ($query->get('post_type') !== 'afso_videos') return;
@@ -183,12 +189,34 @@ add_action('pre_get_posts', function ($query) {
     $orderby = $query->get('orderby');
 
     if ($orderby === 'afso_sequence') {
+        $query->set('meta_query', [
+            'relation' => 'OR',
+            [
+                'key' => 'afso_sequence',
+                'compare' => 'EXISTS',
+            ],
+            [
+                'key' => 'afso_sequence',
+                'compare' => 'NOT EXISTS',
+            ],
+        ]);
         $query->set('meta_key', 'afso_sequence');
-        $query->set('orderby', 'meta_value_num');
+        $query->set('orderby', 'meta_value_num title');
     }
 
     if ($orderby === 'afso_date_filmed') {
+        $query->set('meta_query', [
+            'relation' => 'OR',
+            [
+                'key' => 'afso_date_filmed',
+                'compare' => 'EXISTS',
+            ],
+            [
+                'key' => 'afso_date_filmed',
+                'compare' => 'NOT EXISTS',
+            ],
+        ]);
         $query->set('meta_key', 'afso_date_filmed');
-        $query->set('orderby', 'meta_value');
+        $query->set('orderby', 'meta_value title');
     }
 });
