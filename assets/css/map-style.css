@@ -106,3 +106,23 @@
 body.afso-modal-open {
     overflow: hidden;
 }
+
+/* Overview county table sortable header buttons */
+.afso-summary-table th .afso-sort-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.afso-summary-table th .afso-sort-btn:hover,
+.afso-summary-table th .afso-sort-btn:focus {
+    text-decoration: underline;
+    outline: none;
+}
