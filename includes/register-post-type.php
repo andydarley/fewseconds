@@ -182,33 +182,21 @@ add_action('pre_get_posts', function ($query) {
     if ($orderby === 'afso_sequence') {
         $query->set('meta_query', [
             'relation' => 'OR',
-            [
-                'key' => 'afso_sequence',
-                'compare' => 'EXISTS',
-            ],
-            [
-                'key' => 'afso_sequence',
-                'compare' => 'NOT EXISTS',
-            ],
+            ['key' => 'afso_sequence', 'compare' => 'EXISTS'],
+            ['key' => 'afso_sequence', 'compare' => 'NOT EXISTS'],
         ]);
         $query->set('meta_key', 'afso_sequence');
-        $query->set('orderby', 'meta_value_num title');
+        $query->set('orderby', 'meta_value_num');
     }
 
     if ($orderby === 'afso_date_filmed') {
         $query->set('meta_query', [
             'relation' => 'OR',
-            [
-                'key' => 'afso_date_filmed',
-                'compare' => 'EXISTS',
-            ],
-            [
-                'key' => 'afso_date_filmed',
-                'compare' => 'NOT EXISTS',
-            ],
+            ['key' => 'afso_date_filmed', 'compare' => 'EXISTS'],
+            ['key' => 'afso_date_filmed', 'compare' => 'NOT EXISTS'],
         ]);
         $query->set('meta_key', 'afso_date_filmed');
-        $query->set('orderby', 'meta_value title');
+        $query->set('orderby', 'meta_value');
     }
 });
 
