@@ -15,8 +15,8 @@ document.addEventListener('DOMContentLoaded', function () {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         const markers = L.markerClusterGroup({
-            maxClusterRadius: 20,
-            disableClusteringAtZoom: 7,
+          maxClusterRadius: 20,
+          disableClusteringAtZoom: 7,
           showCoverageOnHover: false
         });
 
@@ -35,8 +35,6 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           const marker = L.marker([video.lat, video.lng], markerOptions);
-
-          // Marker click opens modal (replaces old inline popup iframe)
           marker.on('click', () => {
             openAfsoModal(modal, video, marker.getElement());
           });
@@ -100,27 +98,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     titleEl.textContent = video.title || '';
 
-    // Same core field as before: video_id -> embed URL
     const embedUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.video_id || '')}`;
     iframeEl.src = embedUrl;
 
-    // Same content field as before
     contentEl.textContent = video.content || '';
 
-    // Same date field as before, but safe formatting
-    let dateText = '';
-    if (video.date) {
-      const d = new Date(video.date);
-      if (!Number.isNaN(d.getTime())) {
-        dateText = `Date: ${d.toLocaleString()}`;
-      } else {
-        dateText = `Date: ${video.date}`;
-      }
-    }
-    dateEl.textContent = dateText;
-    dateEl.style.display = dateText ? '' : 'none';
+    const date = (video.date || '').trim();
+    const time = (video.time || '').trim();
+    const when = `${date}${time ? ' ' + time : ''}`.trim();
 
-    // Same link field as before
+    dateEl.textContent = when ? `Filmed: ${when}` : '';
+    dateEl.style.display = when ? '' : 'none';
+
     linkEl.href = video.link || '#';
 
     wrapper.removeAttribute('hidden');
@@ -133,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function closeAfsoModal(wrapper) {
     const iframeEl = wrapper.querySelector('.afso-modal__iframe');
-    iframeEl.src = ''; // stop video/audio
+    iframeEl.src = '';
 
     wrapper.setAttribute('hidden', 'hidden');
     wrapper.setAttribute('aria-hidden', 'true');

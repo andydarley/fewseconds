@@ -1,4 +1,5 @@
 <?php
+
 add_action('rest_api_init', function () {
     register_rest_route('afso/v1', '/videos', [
         'methods' => 'GET',
@@ -18,6 +19,7 @@ add_action('rest_api_init', function () {
                 $county_terms = wp_get_post_terms($post->ID, 'county');
                 $county = '';
                 $county_slug = '';
+
                 if (!is_wp_error($county_terms) && !empty($county_terms)) {
                     $county = $county_terms[0]->name;
                     $county_slug = $county_terms[0]->slug;
@@ -31,34 +33,8 @@ add_action('rest_api_init', function () {
                     }
                 }
 
-                // Preferred modern field
-                $date_value = get_post_meta($post->ID, 'afso_date_filmed', true);
-
-                // Legacy fallback: afso_date + afso_time
-                if ($date_value === '') {
-                    $legacy_date = trim((string) get_post_meta($post->ID, 'afso_date', true)); // e.g. 05/03/2013
-                    $legacy_time = trim((string) get_post_meta($post->ID, 'afso_time', true)); // e.g. 3.18pm
-
-                    if ($legacy_date !== '' && $legacy_time !== '') {
-                        $candidate = $legacy_date . ' ' . strtolower($legacy_time);
-
-                        $dt = DateTime::createFromFormat('d/m/Y g.ia', $candidate);
-                        if (!$dt) $dt = DateTime::createFromFormat('d/m/Y g:ia', $candidate);
-                        if (!$dt) $dt = DateTime::createFromFormat('d/m/Y H:i', $candidate);
-
-                        if ($dt instanceof DateTime) {
-                            $date_value = $dt->format('Y-m-d H:i:s');
-                        }
-                    }
-
-                    // Date-only fallback
-                    if ($date_value === '' && $legacy_date !== '') {
-                        $dt = DateTime::createFromFormat('d/m/Y', $legacy_date);
-                        if ($dt instanceof DateTime) {
-                            $date_value = $dt->format('Y-m-d 00:00:00');
-                        }
-                    }
-                }
+                $date = trim((string) get_post_meta($post->ID, 'afso_date', true));
+                $time = trim((string) get_post_meta($post->ID, 'afso_time', true));
 
                 $data[] = [
                     'id' => (int) $post->ID,
@@ -68,7 +44,8 @@ add_action('rest_api_init', function () {
                     'video_id' => $vid,
                     'content' => $post->post_content,
                     'link' => get_permalink($post),
-                    'date' => $date_value,
+                    'date' => $date,
+                    'time' => $time,
                     'county' => $county,
                     'county_slug' => $county_slug,
                     'icon_url' => $icon_url,
